@@ -1,5 +1,5 @@
 const HELIUS_API_KEY = "fa43e2c8-81f4-4b61-96b2-534ed874139b";
-const HELIUS_BASE_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const HELIUS_BASE_URL = "https://mainnet.helius-rpc.com/";
 
 export interface WalletMetrics {
   totalPnL: number;
@@ -22,6 +22,7 @@ export const fetchWalletData = async (walletAddress: string): Promise<WalletMetr
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${HELIUS_API_KEY}`,
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -31,7 +32,16 @@ export const fetchWalletData = async (walletAddress: string): Promise<WalletMetr
       })
     });
 
+    if (!balanceResponse.ok) {
+      throw new Error(`HTTP error! status: ${balanceResponse.status}`);
+    }
+
     const balanceData = await balanceResponse.json();
+    
+    if (balanceData.error) {
+      throw new Error(`RPC error: ${balanceData.error.message}`);
+    }
+
     const nativeBalance = balanceData.result?.value || 0;
     const solBalance = nativeBalance / 1000000000; // Convert lamports to SOL
 
@@ -40,6 +50,7 @@ export const fetchWalletData = async (walletAddress: string): Promise<WalletMetr
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${HELIUS_API_KEY}`,
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -53,7 +64,16 @@ export const fetchWalletData = async (walletAddress: string): Promise<WalletMetr
       })
     });
 
+    if (!tokenResponse.ok) {
+      throw new Error(`HTTP error! status: ${tokenResponse.status}`);
+    }
+
     const tokenData = await tokenResponse.json();
+    
+    if (tokenData.error) {
+      throw new Error(`RPC error: ${tokenData.error.message}`);
+    }
+
     const tokenAccounts = tokenData.result?.value?.length || 0;
 
     // Estimate current portfolio value (SOL price approximation)
@@ -101,4 +121,19 @@ export const getMockWalletData = (): WalletMetrics => ({
   nativeBalance: 15.7,
   tokenAccounts: 23,
   nftCount: 7
+});
+
+// Empty data for initial state
+export const getEmptyWalletData = (): WalletMetrics => ({
+  totalPnL: 0,
+  totalPnLPercentage: 0,
+  winRate: 0,
+  totalTrades: 0,
+  avgTrade: 0,
+  bestTrade: 0,
+  worstTrade: 0,
+  currentValue: 0,
+  nativeBalance: 0,
+  tokenAccounts: 0,
+  nftCount: 0
 });

@@ -5,7 +5,7 @@ interface MetricCardProps {
   title: string;
   value: string;
   change: string;
-  trend: "up" | "down";
+  trend: "up" | "down" | "neutral";
   icon: LucideIcon;
 }
 
@@ -19,7 +19,7 @@ export const MetricCard = ({ title, value, change, trend, icon: Icon }: MetricCa
             <div>
               <p className="text-2xl font-bold text-foreground">{value}</p>
               <p className={`text-sm font-medium ${
-                trend === "up" ? "text-profit" : "text-loss"
+                trend === "up" ? "text-green-400" : trend === "down" ? "text-red-400" : "text-muted-foreground"
               }`}>
                 {change}
               </p>
@@ -27,8 +27,10 @@ export const MetricCard = ({ title, value, change, trend, icon: Icon }: MetricCa
           </div>
           <div className={`p-3 rounded-xl ${
             trend === "up" 
-              ? "bg-profit/10 text-profit" 
-              : "bg-loss/10 text-loss"
+              ? "bg-green-400/10 text-green-400" 
+              : trend === "down"
+              ? "bg-red-400/10 text-red-400"
+              : "bg-muted/10 text-muted-foreground"
           }`}>
             <Icon className="h-5 w-5" />
           </div>

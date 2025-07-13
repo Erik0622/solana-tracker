@@ -6,13 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "./MetricCard";
 import { PerformanceChart } from "./PerformanceChart";
 import { PnLCalendar } from "./PnLCalendar";
-import { fetchWalletData, getMockWalletData, type WalletMetrics } from "@/services/heliusApi";
+import { fetchWalletData, getMockWalletData, getEmptyWalletData, type WalletMetrics } from "@/services/heliusApi";
 
 export const WalletAnalyzer = () => {
   const [walletAddress, setWalletAddress] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
-  const [walletMetrics, setWalletMetrics] = useState<WalletMetrics | null>(null);
+  const [walletMetrics, setWalletMetrics] = useState<WalletMetrics>(getEmptyWalletData());
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
@@ -94,107 +94,107 @@ export const WalletAnalyzer = () => {
             </CardContent>
           </Card>
 
-          {/* Feature Showcase */}
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:scale-105">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                  <Zap className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Real-Time Analysis</h3>
-                <p className="text-muted-foreground text-sm">
-                  Powered by Helius API for instant, accurate Solana blockchain data
-                </p>
-              </CardContent>
-            </Card>
+          {/* Feature Showcase - Only show if not analyzed */}
+          {!hasAnalyzed && (
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                    <Zap className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Real-Time Analysis</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Powered by Helius API for instant, accurate Solana blockchain data
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20 hover:border-accent/40 transition-all duration-300 hover:scale-105">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center">
-                  <Activity className="h-8 w-8 text-accent" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Advanced Metrics</h3>
-                <p className="text-muted-foreground text-sm">
-                  Comprehensive P&L tracking, win rates, and portfolio performance
-                </p>
-              </CardContent>
-            </Card>
+              <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20 hover:border-accent/40 transition-all duration-300 hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center">
+                    <Activity className="h-8 w-8 text-accent" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Advanced Metrics</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Comprehensive P&L tracking, win rates, and portfolio performance
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-gradient-to-br from-secondary/5 to-muted/5 border-secondary/20 hover:border-secondary/40 transition-all duration-300 hover:scale-105">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-secondary/20 to-secondary/10 flex items-center justify-center">
-                  <Timer className="h-8 w-8 text-secondary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Historical Data</h3>
-                <p className="text-muted-foreground text-sm">
-                  Visual charts and calendars showing your trading journey
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card className="bg-gradient-to-br from-secondary/5 to-muted/5 border-secondary/20 hover:border-secondary/40 transition-all duration-300 hover:scale-105">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-secondary/20 to-secondary/10 flex items-center justify-center">
+                    <Timer className="h-8 w-8 text-secondary" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Historical Data</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Visual charts and calendars showing your trading journey
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Analysis Results */}
-      {hasAnalyzed && walletMetrics && (
-        <div className="container mx-auto px-6 py-8 space-y-8">
-          {/* Key Metrics */}
-          <div>
-            <h2 className="text-2xl font-semibold mb-6 flex items-center space-x-2">
-              <DollarSign className="h-6 w-6 text-primary" />
-              <span>Performance Overview</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <MetricCard
-                title="Total P&L"
-                value={`$${walletMetrics.totalPnL.toLocaleString()}`}
-                change={`+${walletMetrics.totalPnLPercentage.toFixed(1)}%`}
-                trend={walletMetrics.totalPnL > 0 ? "up" : "down"}
-                icon={walletMetrics.totalPnL > 0 ? TrendingUp : TrendingDown}
-              />
-              <MetricCard
-                title="Win Rate"
-                value={`${walletMetrics.winRate.toFixed(1)}%`}
-                change={`${walletMetrics.tokenAccounts} tokens`}
-                trend="up"
-                icon={Target}
-              />
-              <MetricCard
-                title="Total Trades"
-                value={walletMetrics.totalTrades.toString()}
-                change={`${walletMetrics.nftCount} NFTs`}
-                trend="up"
-                icon={BarChart3}
-              />
-              <MetricCard
-                title="Portfolio Value"
-                value={`$${walletMetrics.currentValue.toLocaleString()}`}
-                change={`${walletMetrics.nativeBalance.toFixed(2)} SOL`}
-                trend="up"
-                icon={Wallet}
-              />
-            </div>
-          </div>
-
-          {/* Performance Chart */}
-          <div>
-            <h2 className="text-2xl font-semibold mb-6 flex items-center space-x-2">
-              <TrendingUp className="h-6 w-6 text-primary" />
-              <span>Portfolio Performance</span>
-            </h2>
-            <PerformanceChart />
-          </div>
-
-          {/* P&L Calendar */}
-          <div>
-            <h2 className="text-2xl font-semibold mb-6 flex items-center space-x-2">
-              <Calendar className="h-6 w-6 text-primary" />
-              <span>P&L Calendar</span>
-            </h2>
-            <PnLCalendar />
+      {/* Analysis Results - Always show, but with different data based on state */}
+      <div className="container mx-auto px-6 py-8 space-y-8">
+        {/* Key Metrics */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-6 flex items-center space-x-2">
+            <DollarSign className="h-6 w-6 text-primary" />
+            <span>Performance Overview</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              title="Total P&L"
+              value={hasAnalyzed ? `$${walletMetrics.totalPnL.toLocaleString()}` : "$0"}
+              change={hasAnalyzed ? `+${walletMetrics.totalPnLPercentage.toFixed(1)}%` : "0%"}
+              trend={walletMetrics.totalPnL > 0 ? "up" : "neutral"}
+              icon={walletMetrics.totalPnL > 0 ? TrendingUp : TrendingDown}
+            />
+            <MetricCard
+              title="Win Rate"
+              value={hasAnalyzed ? `${walletMetrics.winRate.toFixed(1)}%` : "0%"}
+              change={hasAnalyzed ? `${walletMetrics.tokenAccounts} tokens` : "0 tokens"}
+              trend="neutral"
+              icon={Target}
+            />
+            <MetricCard
+              title="Total Trades"
+              value={hasAnalyzed ? walletMetrics.totalTrades.toString() : "0"}
+              change={hasAnalyzed ? `${walletMetrics.nftCount} NFTs` : "0 NFTs"}
+              trend="neutral"
+              icon={BarChart3}
+            />
+            <MetricCard
+              title="Portfolio Value"
+              value={hasAnalyzed ? `$${walletMetrics.currentValue.toLocaleString()}` : "$0"}
+              change={hasAnalyzed ? `${walletMetrics.nativeBalance.toFixed(2)} SOL` : "0 SOL"}
+              trend="neutral"
+              icon={Wallet}
+            />
           </div>
         </div>
-      )}
+
+        {/* Performance Chart */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-6 flex items-center space-x-2">
+            <TrendingUp className="h-6 w-6 text-primary" />
+            <span>Portfolio Performance</span>
+          </h2>
+          <PerformanceChart portfolioValue={walletMetrics.currentValue} />
+        </div>
+
+        {/* P&L Calendar */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-6 flex items-center space-x-2">
+            <Calendar className="h-6 w-6 text-primary" />
+            <span>P&L Calendar</span>
+          </h2>
+          <PnLCalendar />
+        </div>
+      </div>
 
       {/* Initial State */}
       {!hasAnalyzed && !isAnalyzing && (
