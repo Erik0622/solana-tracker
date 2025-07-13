@@ -1,37 +1,39 @@
 import { useState } from "react";
-import { Search, TrendingUp, TrendingDown, DollarSign, Target, Calendar, BarChart3 } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, DollarSign, Target, Calendar, BarChart3, Wallet, Shield, Zap, Users, Activity, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "./MetricCard";
 import { PerformanceChart } from "./PerformanceChart";
 import { PnLCalendar } from "./PnLCalendar";
+import { fetchWalletData, getMockWalletData, type WalletMetrics } from "@/services/heliusApi";
 
 export const WalletAnalyzer = () => {
   const [walletAddress, setWalletAddress] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [walletMetrics, setWalletMetrics] = useState<WalletMetrics | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
     if (!walletAddress) return;
     
     setIsAnalyzing(true);
-    // Simulate analysis delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    setError(null);
+    
+    try {
+      // Try to fetch real data from Helius API
+      const metrics = await fetchWalletData(walletAddress);
+      setWalletMetrics(metrics);
+    } catch (err) {
+      console.error('Failed to fetch real data, using mock data:', err);
+      // Fallback to mock data
+      setWalletMetrics(getMockWalletData());
+      setError('Using demo data - API unavailable');
+    }
+    
     setIsAnalyzing(false);
     setHasAnalyzed(true);
-  };
-
-  // Mock data for demonstration
-  const mockMetrics = {
-    totalPnL: 12435.67,
-    totalPnLPercentage: 24.5,
-    winRate: 68.2,
-    totalTrades: 247,
-    avgTrade: 50.34,
-    bestTrade: 2840.12,
-    worstTrade: -1250.45,
-    currentValue: 63285.43
   };
 
   return (
@@ -64,6 +66,12 @@ export const WalletAnalyzer = () => {
                     onChange={(e) => setWalletAddress(e.target.value)}
                     className="bg-background/50 border-border/60 text-foreground placeholder:text-muted-foreground"
                   />
+                  {error && (
+                    <p className="text-yellow-500 text-sm mt-2 flex items-center">
+                      <Shield className="h-4 w-4 mr-1" />
+                      {error}
+                    </p>
+                  )}
                 </div>
                 <Button 
                   onClick={handleAnalyze}
@@ -85,11 +93,50 @@ export const WalletAnalyzer = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Feature Showcase */}
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:scale-105">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                  <Zap className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Real-Time Analysis</h3>
+                <p className="text-muted-foreground text-sm">
+                  Powered by Helius API for instant, accurate Solana blockchain data
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20 hover:border-accent/40 transition-all duration-300 hover:scale-105">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center">
+                  <Activity className="h-8 w-8 text-accent" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Advanced Metrics</h3>
+                <p className="text-muted-foreground text-sm">
+                  Comprehensive P&L tracking, win rates, and portfolio performance
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-secondary/5 to-muted/5 border-secondary/20 hover:border-secondary/40 transition-all duration-300 hover:scale-105">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-secondary/20 to-secondary/10 flex items-center justify-center">
+                  <Timer className="h-8 w-8 text-secondary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Historical Data</h3>
+                <p className="text-muted-foreground text-sm">
+                  Visual charts and calendars showing your trading journey
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
 
       {/* Analysis Results */}
-      {hasAnalyzed && (
+      {hasAnalyzed && walletMetrics && (
         <div className="container mx-auto px-6 py-8 space-y-8">
           {/* Key Metrics */}
           <div>
@@ -100,31 +147,31 @@ export const WalletAnalyzer = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <MetricCard
                 title="Total P&L"
-                value={`$${mockMetrics.totalPnL.toLocaleString()}`}
-                change={`+${mockMetrics.totalPnLPercentage}%`}
-                trend={mockMetrics.totalPnL > 0 ? "up" : "down"}
-                icon={mockMetrics.totalPnL > 0 ? TrendingUp : TrendingDown}
+                value={`$${walletMetrics.totalPnL.toLocaleString()}`}
+                change={`+${walletMetrics.totalPnLPercentage.toFixed(1)}%`}
+                trend={walletMetrics.totalPnL > 0 ? "up" : "down"}
+                icon={walletMetrics.totalPnL > 0 ? TrendingUp : TrendingDown}
               />
               <MetricCard
                 title="Win Rate"
-                value={`${mockMetrics.winRate}%`}
-                change="vs 30d avg"
+                value={`${walletMetrics.winRate.toFixed(1)}%`}
+                change={`${walletMetrics.tokenAccounts} tokens`}
                 trend="up"
                 icon={Target}
               />
               <MetricCard
                 title="Total Trades"
-                value={mockMetrics.totalTrades.toString()}
-                change="+12 this week"
+                value={walletMetrics.totalTrades.toString()}
+                change={`${walletMetrics.nftCount} NFTs`}
                 trend="up"
                 icon={BarChart3}
               />
               <MetricCard
-                title="Current Value"
-                value={`$${mockMetrics.currentValue.toLocaleString()}`}
-                change="+3.2% today"
+                title="Portfolio Value"
+                value={`$${walletMetrics.currentValue.toLocaleString()}`}
+                change={`${walletMetrics.nativeBalance.toFixed(2)} SOL`}
                 trend="up"
-                icon={DollarSign}
+                icon={Wallet}
               />
             </div>
           </div>
