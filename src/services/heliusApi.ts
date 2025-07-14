@@ -31,7 +31,7 @@ const getSolPrice = async () => (await (await fetch(COINGECKO_URL)).json()).sola
 
 /* Enhanced-Transactions → REST-Host ---------------- */
 const getTxs = async (addr: string) => {
-  const url = `${HELIUS_REST}/v0/addresses/${addr}/transactions?api-key=${HELIUS_API_KEY}&limit=200`;
+  const url = `${HELIUS_REST}/v0/addresses/${addr}/transactions?api-key=${HELIUS_API_KEY}&limit=99`;
   const r = await fetch(url);
   if (!r.ok) throw new Error(`tx HTTP ${r.status}`);
   return r.json() as Promise<
