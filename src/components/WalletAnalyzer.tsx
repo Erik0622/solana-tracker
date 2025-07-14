@@ -32,7 +32,7 @@ import {
   getMockWalletData,
   getEmptyWalletData,
   type WalletMetrics,
-} from "@/lib/heliusApi";
+} from "@/services/heliusApi";
 
 export const WalletAnalyzer = () => {
   const [walletAddress, setWalletAddress] = useState("");
