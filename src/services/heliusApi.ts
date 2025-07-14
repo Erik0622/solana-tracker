@@ -1,6 +1,6 @@
 // src/lib/heliusApi.ts
 
-const HELIUS_API_KEY = "fa43e2c8-81f4-4b61-96b2-534ed874139b";
+const HELIUS_API_KEY = "fa43e2c8-81f4-4b61-96b7-534ed874139b";
 // Helius erwartet den Key als Query-Parameter:
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 
