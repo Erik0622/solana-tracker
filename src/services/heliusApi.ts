@@ -1,5 +1,8 @@
+// src/lib/heliusApi.ts
+
 const HELIUS_API_KEY = "fa43e2c8-81f4-4b61-96b2-534ed874139b";
-const HELIUS_BASE_URL = "https://mainnet.helius-rpc.com/";
+// Helius erwartet den Key als Query-Parameter:
+const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 
 export interface WalletMetrics {
   totalPnL: number;
@@ -15,76 +18,56 @@ export interface WalletMetrics {
   nftCount: number;
 }
 
+async function heliusRpc<T>(method: string, params: any[]): Promise<T> {
+  const res = await fetch(HELIUS_RPC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  }
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`RPC Error: ${data.error.message}`);
+  }
+  return data.result as T;
+}
+
 export const fetchWalletData = async (walletAddress: string): Promise<WalletMetrics> => {
   try {
-    // Get native SOL balance
-    const balanceResponse = await fetch(HELIUS_BASE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${HELIUS_API_KEY}`,
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getBalance',
-        params: [walletAddress]
-      })
-    });
+    // 1) Native SOL-Balance (Lamports → SOL)
+    const balanceResult = await heliusRpc<{ value: number }>("getBalance", [walletAddress]);
+    const solBalance = (balanceResult.value || 0) / 1e9;
 
-    if (!balanceResponse.ok) {
-      throw new Error(`HTTP error! status: ${balanceResponse.status}`);
-    }
+    // 2) Token-Accounts zählen
+    const tokenResult = await heliusRpc<{ value: unknown[] }>(
+      "getTokenAccountsByOwner",
+      [
+        walletAddress,
+        { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { encoding: "jsonParsed" },
+      ]
+    );
+    const tokenAccounts = tokenResult.value.length;
 
-    const balanceData = await balanceResponse.json();
-    
-    if (balanceData.error) {
-      throw new Error(`RPC error: ${balanceData.error.message}`);
-    }
+    // 3) (Optional) NFT-Count – hier als 30 % der Token-Accounts
+    const nftCount = Math.floor(tokenAccounts * 0.3);
 
-    const nativeBalance = balanceData.result?.value || 0;
-    const solBalance = nativeBalance / 1000000000; // Convert lamports to SOL
-
-    // Get token accounts
-    const tokenResponse = await fetch(HELIUS_BASE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${HELIUS_API_KEY}`,
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getTokenAccountsByOwner',
-        params: [
-          walletAddress,
-          { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-          { encoding: 'jsonParsed' }
-        ]
-      })
-    });
-
-    if (!tokenResponse.ok) {
-      throw new Error(`HTTP error! status: ${tokenResponse.status}`);
-    }
-
-    const tokenData = await tokenResponse.json();
-    
-    if (tokenData.error) {
-      throw new Error(`RPC error: ${tokenData.error.message}`);
-    }
-
-    const tokenAccounts = tokenData.result?.value?.length || 0;
-
-    // Estimate current portfolio value (SOL price approximation)
-    const solPriceUSD = 100; // Rough estimate, in real app would fetch from price API
+    // 4) Portfolio-Wert schätzen (Sol-Preis müsste live kommen)
+    const solPriceUSD = 100;
     const currentValue = solBalance * solPriceUSD;
 
-    // Generate realistic metrics based on wallet activity
+    // 5) Metriken („Mock-PNL“) – ersetze hier später durch echte Trades/PNL aus Helius
     const totalTrades = Math.max(10, tokenAccounts * 5 + Math.floor(Math.random() * 100));
-    const winRate = 45 + Math.random() * 35; // 45-80% win rate
+    const winRate = 45 + Math.random() * 35;
     const avgTrade = currentValue / totalTrades;
-    const totalPnL = currentValue * (0.1 + Math.random() * 0.4); // 10-50% gains
+    const totalPnL = currentValue * (0.1 + Math.random() * 0.4);
     const totalPnLPercentage = (totalPnL / (currentValue - totalPnL)) * 100;
     const bestTrade = avgTrade * (5 + Math.random() * 10);
     const worstTrade = -avgTrade * (2 + Math.random() * 5);
@@ -100,15 +83,15 @@ export const fetchWalletData = async (walletAddress: string): Promise<WalletMetr
       currentValue,
       nativeBalance: solBalance,
       tokenAccounts,
-      nftCount: Math.floor(tokenAccounts * 0.3) // Estimate NFTs as 30% of token accounts
+      nftCount,
     };
-  } catch (error) {
-    console.error('Error fetching wallet data:', error);
-    throw error;
+  } catch (err) {
+    console.error("Error fetching wallet data:", err);
+    throw err;
   }
 };
 
-// Mock data fallback
+// Falls du einen lokalen Fallback möchtest:
 export const getMockWalletData = (): WalletMetrics => ({
   totalPnL: 12435.67,
   totalPnLPercentage: 24.5,
@@ -120,10 +103,9 @@ export const getMockWalletData = (): WalletMetrics => ({
   currentValue: 63285.43,
   nativeBalance: 15.7,
   tokenAccounts: 23,
-  nftCount: 7
+  nftCount: 7,
 });
 
-// Empty data for initial state
 export const getEmptyWalletData = (): WalletMetrics => ({
   totalPnL: 0,
   totalPnLPercentage: 0,
@@ -135,5 +117,5 @@ export const getEmptyWalletData = (): WalletMetrics => ({
   currentValue: 0,
   nativeBalance: 0,
   tokenAccounts: 0,
-  nftCount: 0
+  nftCount: 0,
 });
