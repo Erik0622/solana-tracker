@@ -16,6 +16,7 @@ export interface WalletMetrics {
 
 /* ---------------- Hilfsfunktionen ---------------- */
 const lamportsToSol = (l: number) => l / 1_000_000_000;
+
 const rpc = async <T>(method: string, params: any[]): Promise<T> => {
   const r = await fetch(HELIUS_RPC_URL, {
     method: "POST",
@@ -27,24 +28,41 @@ const rpc = async <T>(method: string, params: any[]): Promise<T> => {
   if (j.error) throw new Error(j.error.message);
   return j.result as T;
 };
-const getSolPrice = async () => (await (await fetch(COINGECKO_URL)).json()).solana.usd;
 
-/* Enhanced-Transactions → REST-Host ---------------- */
-const getTxs = async (addr: string) => {
-  const url = `${HELIUS_REST}/v0/addresses/${addr}/transactions?api-key=${HELIUS_API_KEY}&limit=99`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`tx HTTP ${r.status}`);
-  return r.json() as Promise<
-    { timestamp: number; accountData: { account: string; nativeBalanceChange: number }[] }[]
-  >;
-};
+const getSolPrice = async () =>
+  (await (await fetch(COINGECKO_URL)).json()).solana.usd;
+
+/* ---------------- Paging für Enhanced TX ---------------- */
+// holt alle Enhanced-TXs, bis keine neuen mehr kommen oder eine Sicherheits-Grenze
+async function getAllTxs(addr: string, limit = 100) {
+  let all: {
+    timestamp: number;
+    accountData: { account: string; nativeBalanceChange: number }[];
+  }[] = [];
+  let before: string | null = null;
+
+  while (true) {
+    let url = `${HELIUS_REST}/v0/addresses/${addr}/transactions?api-key=${HELIUS_API_KEY}&limit=${limit}`;
+    if (before) url += `&before=${before}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`tx HTTP ${res.status}`);
+    const batch = await res.json() as typeof all;
+    if (batch.length === 0) break;
+    all = all.concat(batch);
+    // nächster Cursor: letzte Signature dieser Charge
+    before = batch[batch.length - 1].signature as unknown as string;
+    // Wenn wir zu viele laden, können wir hier abbrechen:
+    if (all.length >= 1000) break;
+  }
+
+  return all;
+}
 
 /* ---------------- Hauptfunktion ------------------- */
 export async function fetchWalletData(addr: string): Promise<WalletMetrics> {
-  /* 1) Balance / Token-Accounts */
+  // 1) SOL-Balance & Token-Accounts
   const bal  = await rpc<{ value: number }>("getBalance", [addr]);
   const sol  = lamportsToSol(bal.value);
-
   const toks = await rpc<{ value: unknown[] }>("getTokenAccountsByOwner", [
     addr,
     { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
@@ -53,13 +71,15 @@ export async function fetchWalletData(addr: string): Promise<WalletMetrics> {
   const tokenAccounts = toks.value.length;
   const nftCount = Math.floor(tokenAccounts * 0.3);
 
-  /* 2) Enhanced Transactions */
-  const txs = await getTxs(addr);
+  // 2) Alle Enhanced-TXs holen (Paging)
+  const txs = await getAllTxs(addr);
+
+  // 3) Metriken aus TXs berechnen
   let totalTrades = 0, wins = 0, bestSol = -Infinity, worstSol = Infinity, pnlSol = 0;
   const daily = new Map<string, number>();
 
   for (const tx of txs) {
-    const a = tx.accountData.find((d) => d.account === addr);
+    const a = tx.accountData.find(d => d.account === addr);
     if (!a) continue;
     const dSol = lamportsToSol(a.nativeBalanceChange);
     if (dSol === 0) continue;
@@ -68,18 +88,19 @@ export async function fetchWalletData(addr: string): Promise<WalletMetrics> {
     daily.set(key, (daily.get(key) || 0) + dSol);
 
     if (Math.abs(dSol) > 0.0001) {
-      totalTrades++; if (dSol > 0) wins++;
-      bestSol = Math.max(bestSol, dSol); worstSol = Math.min(worstSol, dSol);
-      pnlSol += dSol;
+      totalTrades++;
+      if (dSol > 0) wins++;
+      bestSol  = Math.max(bestSol,  dSol);
+      worstSol = Math.min(worstSol, dSol);
+      pnlSol  += dSol;
     }
   }
 
-  /* 3) USD-Konvertierung */
+  // 4) USD-Umrechnung & 90-Tage-Serie
   const price = await getSolPrice();
   const pnlUsd = pnlSol * price;
   const valueUsd = sol * price;
 
-  /* 4) 90-Tage-Serie */
   const today = new Date();
   const dailyPnl: DailyPnl[] = [];
   for (let i = 0; i < 90; i++) {
