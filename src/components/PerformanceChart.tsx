@@ -1,82 +1,80 @@
-import { useState } from "react";
+/* -----------------------------------------------------------------
+   src/components/PerformanceChart.tsx
+   Visualisiert echte Tages-P & L-Werte mit Recharts
+   ----------------------------------------------------------------*/
+import { useState, useMemo } from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { format, parseISO } from "date-fns";
 
-interface PerformanceChartProps {
-  portfolioValue?: number;
+/* -----------------------------------------------------------------
+   Datentyp – kommt direkt aus fetchWalletData → dailyPnl
+   ----------------------------------------------------------------*/
+export interface DailyPoint {
+  date: string;      // "YYYY-MM-DD"
+  netUsd: number;    // Tages-P & L in USD (positiv / negativ)
 }
 
-export const PerformanceChart = ({ portfolioValue = 63285 }: PerformanceChartProps) => {
-  const [timeFrame, setTimeFrame] = useState<'1D' | '7D' | '30D' | '1Y' | 'ALL'>('30D');
-  
-  const generateDataForTimeFrame = (days: number) => {
-    const data = [];
-    const baseValue = portfolioValue * 0.8; // Start from 80% of current value
-    const maxValue = portfolioValue;
-    
-    for (let i = 0; i < days; i++) {
-      const progress = i / (days - 1);
-      const randomVariation = (Math.random() - 0.5) * 0.1;
-      const value = baseValue + (maxValue - baseValue) * progress + baseValue * randomVariation;
-      
-      const date = new Date();
-      date.setDate(date.getDate() - (days - 1 - i));
-      
-      data.push({
-        date: date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        }),
-        value: Math.max(0, value),
-        profit: Math.random() > 0.6 ? value * 0.05 : 0,
-        loss: Math.random() > 0.7 ? value * 0.03 : 0,
-      });
-    }
-    return data;
-  };
+interface PerformanceChartProps {
+  series: DailyPoint[];   // komplette 90-Tage-Historie
+}
 
-  const getDataForTimeFrame = () => {
-    switch (timeFrame) {
-      case '1D': return generateDataForTimeFrame(24);
-      case '7D': return generateDataForTimeFrame(7);
-      case '30D': return generateDataForTimeFrame(30);
-      case '1Y': return generateDataForTimeFrame(365);
-      case 'ALL': return generateDataForTimeFrame(730);
-      default: return generateDataForTimeFrame(30);
-    }
-  };
+/* -----------------------------------------------------------------
+   Hilfsfunktionen
+   ----------------------------------------------------------------*/
+const TIMEFRAMES = {
+  "7D": 7,
+  "30D": 30,
+  "90D": 90,
+  ALL: Infinity,
+} as const;
 
-  const data = getDataForTimeFrame();
-  const minValue = Math.min(...data.map(d => d.value));
-  const maxValue = Math.max(...data.map(d => d.value));
-  const range = maxValue - minValue;
-  const yAxisMin = Math.max(0, minValue - range * 0.1);
+const formatXAxis = (iso: string) =>
+  format(parseISO(iso), "MMM d");                              /* date-fns ✔ :contentReference[oaicite:0]{index=0} */
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-card/95 backdrop-blur-sm border border-border/60 rounded-lg p-3 shadow-lg">
-          <p className="text-foreground font-medium">{label}</p>
-          <p className="text-primary">
-            Value: ${payload[0].value.toLocaleString()}
-          </p>
-          {data.profit > 0 && (
-            <p className="text-green-400">
-              Profit: +${data.profit.toFixed(2)}
-            </p>
-          )}
-          {data.loss > 0 && (
-            <p className="text-red-400">
-              Loss: -${data.loss.toFixed(2)}
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
+/* -----------------------------------------------------------------
+   Reusable Tooltip
+   ----------------------------------------------------------------*/
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const usd = payload[0].value as number;
+    return (
+      <div className="bg-card/95 backdrop-blur-sm border border-border/60 rounded-lg p-3 shadow-lg">
+        <p className="text-foreground font-medium">{formatXAxis(label)}</p>
+        <p className="text-primary">
+          {usd >= 0 ? "+" : "−"}${Math.abs(usd).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+/* -----------------------------------------------------------------
+   Haupt-Komponente
+   ----------------------------------------------------------------*/
+export const PerformanceChart = ({ series }: PerformanceChartProps) => {
+  const [timeFrame, setTimeFrame] = useState<keyof typeof TIMEFRAMES>("30D");
+
+  /* Gefilterte Daten für das gewählte Zeitfenster ------------------ */
+  const data = useMemo(() => {
+    const limit = TIMEFRAMES[timeFrame];
+    return limit === Infinity ? series : series.slice(-limit);         /* Array-Slicing ✔ :contentReference[oaicite:1]{index=1} */
+  }, [series, timeFrame]);
+
+  /* Skalen --------------------------------------------------------- */
+  const vals = data.map((d) => d.netUsd);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const pad = (max - min) * 0.1 || 1;   // bei flacher Kurve etwas Polster
 
   return (
     <Card className="bg-card/60 backdrop-blur-sm border-border/40">
@@ -84,7 +82,7 @@ export const PerformanceChart = ({ portfolioValue = 63285 }: PerformanceChartPro
         <CardTitle className="flex items-center justify-between">
           <span>Portfolio Performance</span>
           <div className="flex space-x-1">
-            {(['1D', '7D', '30D', '1Y', 'ALL'] as const).map((tf) => (
+            {(Object.keys(TIMEFRAMES) as (keyof typeof TIMEFRAMES)[]).map((tf) => (
               <Button
                 key={tf}
                 variant={timeFrame === tf ? "default" : "ghost"}
@@ -98,36 +96,42 @@ export const PerformanceChart = ({ portfolioValue = 63285 }: PerformanceChartPro
           </div>
         </CardTitle>
       </CardHeader>
+
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            {/* Recharts AreaChart API ✔ :contentReference[oaicite:2]{index=2} */}
+            <AreaChart data={data}>
               <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                <linearGradient id="pnlColor" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
-              <XAxis 
-                dataKey="date" 
+
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatXAxis}
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
               />
-              <YAxis 
-                domain={[yAxisMin, 'dataMax']}
+              <YAxis
+                domain={[min - pad, max + pad]}
+                tickFormatter={(v) =>
+                  `${v < 0 ? "–" : ""}$${Math.abs(v / 1_000).toFixed(0)}k`
+                }
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
                 type="monotone"
-                dataKey="value"
+                dataKey="netUsd"
                 stroke="hsl(var(--primary))"
                 strokeWidth={2}
-                fill="url(#colorValue)"
+                fill="url(#pnlColor)"
               />
             </AreaChart>
           </ResponsiveContainer>
