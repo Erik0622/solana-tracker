@@ -4,8 +4,7 @@ import { differenceInCalendarDays, format } from "date-fns"; // npm i date-fns
 /* ← Free-Plan-Key bleibt hart codiert */
 const HELIUS_API_KEY = "fa43e2c8-81f4-4b61-96b7-534ed874139b";
 const HELIUS_BASE    = "https://api.helius.xyz";
-const COINGECKO_URL  =
-  "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
+const COINGECKO_URL  = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd";
 
 export interface DailyPnl { date: string; netUsd: number }
 export interface WalletMetrics {
@@ -62,18 +61,18 @@ async function getEnhancedTxs(address: string) {
 /* ----------------------- Hauptfunktion ------------------------- */
 export async function fetchWalletData(addr: string): Promise<WalletMetrics> {
   /* 1 Saldo & Token-Accounts ─ reine RPC-Credits */
-  const bal  = await heliusRpc<{ value: number }>("getBalance", [addr]);             // :contentReference[oaicite:2]{index=2}
+  const bal  = await heliusRpc<{ value: number }>("getBalance", [addr]);
   const sol  = lamportsToSol(bal.value);
   const toks = await heliusRpc<{ value: unknown[] }>("getTokenAccountsByOwner", [
     addr,
     { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
     { encoding: "jsonParsed" },
-  ]);:contentReference[oaicite:3]{index=3}
+  ]);
   const tokenAccounts = toks.value.length;
   const nftCount      = Math.floor(tokenAccounts * 0.3);
 
   /* 2 Enhanced Transactions ─ 1 Credit/1000 Tx */
-  const txs = await getEnhancedTxs(addr);:contentReference[oaicite:4]{index=4}
+  const txs = await getEnhancedTxs(addr);
 
   let totalTrades = 0,
       wins        = 0,
@@ -102,7 +101,7 @@ export async function fetchWalletData(addr: string): Promise<WalletMetrics> {
   }
 
   /* 3 USD-Werte */
-  const price      = await getSolPriceUsd();:contentReference[oaicite:5]{index=5}
+  const price      = await getSolPriceUsd();
   const pnlUsd     = pnlSol * price;
   const bestUsd    = bestSol  * price;
   const worstUsd   = worstSol * price;
@@ -153,8 +152,18 @@ export const getMockWalletData = () => ({
   nftCount: 7,
   dailyPnl: [],
 });
+
 export const getEmptyWalletData = () => ({
-  totalPnL:0,totalPnLPercentage:0,winRate:0,totalTrades:0,avgTrade:0,
-  bestTrade:0,worstTrade:0,currentValue:0,nativeBalance:0,tokenAccounts:0,
-  nftCount:0,dailyPnl:[]
+  totalPnL: 0,
+  totalPnLPercentage: 0,
+  winRate: 0,
+  totalTrades: 0,
+  avgTrade: 0,
+  bestTrade: 0,
+  worstTrade: 0,
+  currentValue: 0,
+  nativeBalance: 0,
+  tokenAccounts: 0,
+  nftCount: 0,
+  dailyPnl: []
 });
